@@ -241,6 +241,8 @@ func (c *googleConnector) createIdentity(ctx context.Context, identity connector
 		}
 	}
 
+	groups = append(groups, claims.HostedDomain+"|"+claims.HostedDomain)
+
 	identity = connector.Identity{
 		UserID:        idToken.Subject,
 		Username:      claims.Username,

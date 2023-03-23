@@ -381,17 +381,19 @@ func (c *githubConnector) userGroups(ctx context.Context, client *http.Client) (
 		return nil, err
 	}
 
-	orgTeams, err := c.userOrgTeams(ctx, client)
-	if err != nil {
-		return nil, err
-	}
-
+	var orgTeams map[string][]string
+	/*
+		orgTeams, err := c.userOrgTeams(ctx, client)
+		if err != nil {
+			return nil, err
+		}
+	*/
 	groups := make([]string, 0)
 	for _, o := range orgs {
-		groups = append(groups, o)
-		if teams, ok := orgTeams[o]; ok {
+		groups = append(groups, strconv.FormatUint(o.ID, 10)+"|"+o.Login)
+		if teams, ok := orgTeams[o.Login]; ok {
 			for _, t := range teams {
-				groups = append(groups, formatTeamName(o, t))
+				groups = append(groups, formatTeamName(o.Login, t))
 			}
 		}
 	}
@@ -400,8 +402,8 @@ func (c *githubConnector) userGroups(ctx context.Context, client *http.Client) (
 }
 
 // userOrgs retrieves list of current user orgs
-func (c *githubConnector) userOrgs(ctx context.Context, client *http.Client) ([]string, error) {
-	groups := make([]string, 0)
+func (c *githubConnector) userOrgs(ctx context.Context, client *http.Client) ([]org, error) {
+	groups := make([]org, 0)
 	apiURL := c.apiURL + "/user/orgs"
 	for {
 		// https://developer.github.com/v3/orgs/#list-your-organizations
@@ -414,7 +416,7 @@ func (c *githubConnector) userOrgs(ctx context.Context, client *http.Client) ([]
 		}
 
 		for _, o := range orgs {
-			groups = append(groups, o.Login)
+			groups = append(groups, o)
 		}
 
 		if apiURL == "" {
@@ -685,6 +687,7 @@ type team struct {
 }
 
 type org struct {
+	ID    uint64 `json:"id"`
 	Login string `json:"login"`
 }
 

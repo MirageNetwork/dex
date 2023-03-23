@@ -129,7 +129,7 @@ type microsoftConnector struct {
 }
 
 func (c *microsoftConnector) isOrgTenant() bool {
-	return c.tenant != "common" && c.tenant != "consumers" && c.tenant != "organizations"
+	return c.tenant == "common" && c.tenant != "consumers" && c.tenant != "organizations"
 }
 
 func (c *microsoftConnector) groupsRequired(groupScope bool) bool {
@@ -213,10 +213,17 @@ func (c *microsoftConnector) HandleCallback(s connector.Scopes, r *http.Request)
 	}
 
 	if c.groupsRequired(s.Groups) {
-		groups, err := c.getGroups(ctx, client, user.ID)
-		if err != nil {
-			return identity, fmt.Errorf("microsoft: get groups: %v", err)
+		/*
+			groups, err := c.getGroups(ctx, client, user.ID)
+			if err != nil {
+				return identity, fmt.Errorf("microsoft: get groups: %v", err)
+			}
+		*/
+		groups, err := c.org(ctx, client)
+		if err != nil && !strings.Contains(err.Error(), "Unable to find target address") {
+			return identity, fmt.Errorf("microsoft: get org: %v", err)
 		}
+
 		identity.Groups = groups
 	}
 
@@ -365,6 +372,41 @@ func (c *microsoftConnector) user(ctx context.Context, client *http.Client) (u u
 	}
 
 	return u, err
+}
+
+type org struct {
+	Value []struct {
+		ID          string `json:"id"`
+		DisplayName string `json:"displayName"`
+	} `json:"value"`
+}
+
+func (c *microsoftConnector) org(ctx context.Context, client *http.Client) (o []string, err error) {
+	// https://developer.microsoft.com/en-us/graph/docs/api-reference/v1.0/api/user_get
+	req, err := http.NewRequest("GET", c.graphURL+"/v1.0/organization", nil)
+	if err != nil {
+		return o, fmt.Errorf("new req: %v", err)
+	}
+
+	resp, err := client.Do(req.WithContext(ctx))
+	if err != nil {
+		return o, fmt.Errorf("get URL %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return o, newGraphError(resp.Body)
+	}
+
+	var org org
+	if err := json.NewDecoder(resp.Body).Decode(&org); err != nil {
+		return o, fmt.Errorf("JSON decode: %v", err)
+	}
+	for _, v := range org.Value {
+		o = append(o, v.ID+"|"+v.DisplayName)
+	}
+
+	return o, err
 }
 
 // https://developer.microsoft.com/en-us/graph/docs/api-reference/v1.0/resources/group
