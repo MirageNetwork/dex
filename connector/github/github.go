@@ -249,7 +249,7 @@ func (c *githubConnector) HandleCallback(s connector.Scopes, r *http.Request) (i
 		UserID:            strconv.Itoa(user.ID),
 		Username:          username,
 		PreferredUsername: user.Login,
-		Email:             user.Email,
+		Email:             user.Login + "@github", //user.Email,
 		EmailVerified:     true,
 	}
 	if c.useLoginAsID {
@@ -390,7 +390,7 @@ func (c *githubConnector) userGroups(ctx context.Context, client *http.Client) (
 	*/
 	groups := make([]string, 0)
 	for _, o := range orgs {
-		groups = append(groups, strconv.FormatUint(o.ID, 10)+"|"+o.Login)
+		groups = append(groups, strconv.FormatUint(o.ID, 10)+"|"+o.Login+".org.github")
 		if teams, ok := orgTeams[o.Login]; ok {
 			for _, t := range teams {
 				groups = append(groups, formatTeamName(o.Login, t))
