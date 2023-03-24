@@ -299,7 +299,7 @@ func (c *githubConnector) Refresh(ctx context.Context, s connector.Scopes, ident
 	}
 	identity.Username = username
 	identity.PreferredUsername = user.Login
-	identity.Email = user.Email
+	identity.Email = user.Login + "@github" //user.Email
 
 	// Only set identity.Groups if 'orgs', 'org', or 'groups' scope are specified.
 	if c.groupsRequired(s.Groups) {
@@ -321,7 +321,9 @@ func (c *githubConnector) getGroups(ctx context.Context, client *http.Client, gr
 	case c.org != "":
 		return c.teamsForOrg(ctx, client, c.org)
 	case groupScope && c.loadAllGroups:
-		return c.userGroups(ctx, client)
+		userGroup, err := c.userGroups(ctx, client)
+		userGroup = append(userGroup, userLogin+".github")
+		return userGroup, err
 	}
 	return nil, nil
 }
@@ -390,10 +392,10 @@ func (c *githubConnector) userGroups(ctx context.Context, client *http.Client) (
 	*/
 	groups := make([]string, 0)
 	for _, o := range orgs {
-		groups = append(groups, strconv.FormatUint(o.ID, 10)+"|"+o.Login+".org.github")
-		if teams, ok := orgTeams[o.Login]; ok {
+		groups = append(groups, o)
+		if teams, ok := orgTeams[o]; ok {
 			for _, t := range teams {
-				groups = append(groups, formatTeamName(o.Login, t))
+				groups = append(groups, formatTeamName(o, t))
 			}
 		}
 	}
@@ -402,8 +404,8 @@ func (c *githubConnector) userGroups(ctx context.Context, client *http.Client) (
 }
 
 // userOrgs retrieves list of current user orgs
-func (c *githubConnector) userOrgs(ctx context.Context, client *http.Client) ([]org, error) {
-	groups := make([]org, 0)
+func (c *githubConnector) userOrgs(ctx context.Context, client *http.Client) ([]string, error) {
+	groups := make([]string, 0)
 	apiURL := c.apiURL + "/user/orgs"
 	for {
 		// https://developer.github.com/v3/orgs/#list-your-organizations
@@ -416,7 +418,7 @@ func (c *githubConnector) userOrgs(ctx context.Context, client *http.Client) ([]
 		}
 
 		for _, o := range orgs {
-			groups = append(groups, o)
+			groups = append(groups, o.Login)
 		}
 
 		if apiURL == "" {
@@ -687,7 +689,6 @@ type team struct {
 }
 
 type org struct {
-	ID    uint64 `json:"id"`
 	Login string `json:"login"`
 }
 

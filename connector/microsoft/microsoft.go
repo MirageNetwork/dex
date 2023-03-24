@@ -376,8 +376,12 @@ func (c *microsoftConnector) user(ctx context.Context, client *http.Client) (u u
 
 type org struct {
 	Value []struct {
-		ID          string `json:"id"`
-		DisplayName string `json:"displayName"`
+		ID              string `json:"id"`
+		DisplayName     string `json:"displayName"`
+		VerifiedDomains []struct {
+			IsDefault bool   `json:"isDefault"`
+			Name      string `json:"name"`
+		} `json:"verifiedDomains"`
 	} `json:"value"`
 }
 
@@ -403,7 +407,12 @@ func (c *microsoftConnector) org(ctx context.Context, client *http.Client) (o []
 		return o, fmt.Errorf("JSON decode: %v", err)
 	}
 	for _, v := range org.Value {
-		o = append(o, v.ID+"|"+v.DisplayName)
+		for _, d := range v.VerifiedDomains {
+			if d.IsDefault {
+				o = append(o, d.Name)
+				break
+			}
+		}
 	}
 
 	return o, err
