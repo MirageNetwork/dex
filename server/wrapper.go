@@ -92,7 +92,8 @@ func InitDexServer(ctx context.Context, c Config, r *mux.Router) (*Server, error
 
 	for _, conn := range storageConnectors {
 		if _, err := s.OpenConnector(conn); err != nil {
-			return nil, fmt.Errorf("server: Failed to open connector %s: %v", conn.ID, err)
+			continue
+			//cgao6:我们的connector未必已配好，错误信息忽略	return nil, fmt.Errorf("server: Failed to open connector %s: %v", conn.ID, err)
 		}
 	}
 
