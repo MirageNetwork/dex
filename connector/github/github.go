@@ -199,7 +199,12 @@ func (c *githubConnector) LoginURL(scopes connector.Scopes, callbackURL, state s
 		return "", fmt.Errorf("expected callback URL %q did not match the URL in the config %q", callbackURL, c.redirectURI)
 	}
 
-	return c.oauth2Config(scopes).AuthCodeURL(state), nil
+	var options []oauth2.AuthCodeOption
+	if scopes.OfflineAccess {
+		options = append(options, oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "consent"))
+	}
+
+	return c.oauth2Config(scopes).AuthCodeURL(state, options...), nil
 }
 
 type oauth2Error struct {

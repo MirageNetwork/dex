@@ -172,6 +172,10 @@ func (c *microsoftConnector) LoginURL(scopes connector.Scopes, callbackURL, stat
 	if c.promptType != "" {
 		options = append(options, oauth2.SetAuthURLParam("prompt", c.promptType))
 	}
+	// cgao6
+	if scopes.OfflineAccess {
+		options = append(options, oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "select_account"))
+	}
 	if c.domainHint != "" {
 		options = append(options, oauth2.SetAuthURLParam("domain_hint", c.domainHint))
 	}
