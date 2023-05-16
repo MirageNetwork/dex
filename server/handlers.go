@@ -1377,9 +1377,7 @@ func (s *Server) writeAccessToken(w http.ResponseWriter, resp *accessTokenRespon
 
 func (s *Server) renderError(r *http.Request, w http.ResponseWriter, status int, description string) {
 	if s.templates == nil {
-		r.Form.Set("dexerr-status", strconv.Itoa(status))
-		r.Form.Set("dexerr-description", description)
-		http.Redirect(w, r, "/dexerr", http.StatusUnauthorized)
+		http.Redirect(w, r, "/dexerr?code="+strconv.Itoa(status)+"&desc="+url.QueryEscape(description), http.StatusTemporaryRedirect)
 		return
 	}
 	if err := s.templates.err(r, w, status, description); err != nil {
