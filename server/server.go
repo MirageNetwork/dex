@@ -30,6 +30,7 @@ import (
 	"github.com/dexidp/dex/connector/atlassiancrowd"
 	"github.com/dexidp/dex/connector/authproxy"
 	"github.com/dexidp/dex/connector/bitbucketcloud"
+	"github.com/dexidp/dex/connector/dingtalk"
 	"github.com/dexidp/dex/connector/gitea"
 	"github.com/dexidp/dex/connector/github"
 	"github.com/dexidp/dex/connector/gitlab"
@@ -560,6 +561,7 @@ var ConnectorsConfig = map[string]func() ConnectorConfig{
 	"apple":           func() ConnectorConfig { return new(apple.Config) },
 	// Keep around for backwards compatibility.
 	"samlExperimental": func() ConnectorConfig { return new(saml.Config) },
+	"dingtalk":         func() ConnectorConfig { return new(dingtalk.Config) },
 }
 
 // openConnector will parse the connector config and open the connector.
