@@ -203,7 +203,7 @@ func (c *dingtalkConnector) identity(ctx context.Context, s connector.Scopes, to
 	// if user do not have a email address, use mobile number instead.
 	email := user.Email
 	if email == "" {
-		email = user.Mobile
+		email = user.Mobile + "@mira.net"
 	}
 
 	identity = connector.Identity{
@@ -224,6 +224,9 @@ func (c *dingtalkConnector) identity(ctx context.Context, s connector.Scopes, to
 		}
 		identity.Groups = groups
 	}
+
+	//TODO: This is only a temporary solution, we need to find a better way to get the user's organization
+	identity.Groups = append([]string{"吉大正元"}, identity.Groups...)
 
 	if s.OfflineAccess {
 		data := connectorData{RefreshToken: token.RefreshToken, AccessToken: token.AccessToken}
