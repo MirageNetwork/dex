@@ -168,7 +168,7 @@ jobs:
       #     retention-days: 5
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@e5f43133f6e8736992c9f3c1b3296e24b37e17f2 # 0.10.0
+        uses: aquasecurity/trivy-action@b43daad0c3c96202fc5800b511dfae8e6ecce864 # 0.11.0
         with:
           input: image
           format: sarif
@@ -182,6 +182,6 @@ jobs:
           retention-days: 5
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@29b1f65c5e92e24fe6b6647da1eaabe529cec70f # v2.3.3
+        uses: github/codeql-action/upload-sarif@83f0fe6c4988d98a455712a27f0255212bba9bd4 # v2.3.6
         with:
           sarif_file: trivy-results.sarif
