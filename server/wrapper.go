@@ -15,7 +15,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func InitDexServer(ctx context.Context, c Config, r *mux.Router) (*Server, error) {
+func Setup(ctx context.Context, c Config, r *mux.Router) (*Server, error) {
 	rotationStrategy := defaultRotationStrategy(
 		value(c.RotateKeysAfter, 6*time.Hour),
 		value(c.IDTokensValidFor, 24*time.Hour),
