@@ -161,6 +161,13 @@ func (s *Server) handleAuthorization(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+		for ID := range s.connectors {
+			if ID == connectorID {
+				connURL.Path = s.absPath("/auth", url.PathEscape(ID))
+				http.Redirect(w, r, connURL.String(), http.StatusFound)
+				return
+			}
+		}
 		s.renderError(r, w, http.StatusBadRequest, "Connector ID does not match a valid Connector")
 		return
 	}

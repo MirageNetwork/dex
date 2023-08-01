@@ -2,18 +2,76 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"path"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/dexidp/dex/storage"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	jose "gopkg.in/square/go-jose.v2"
 )
+
+func (s *Server) UpdateIssuerHost(host, redirect_uri string) error {
+	s.issuerURL.Host = host
+
+	clients, err := s.storage.ListClients()
+	if err != nil {
+		return fmt.Errorf("server: can't list clients")
+	}
+	for _, client := range clients {
+		s.storage = storage.WithStaticClients(s.storage, []storage.Client{{
+			Name:   client.Name,
+			ID:     client.ID,
+			Secret: client.Secret,
+			RedirectURIs: []string{
+				redirect_uri,
+			},
+		}})
+	}
+
+	return nil
+}
+
+func (s *Server) handleDiscovery(w http.ResponseWriter, r *http.Request) {
+	d := discovery{
+		Issuer:            s.issuerURL.String(),
+		Auth:              s.absURL("/auth"),
+		Token:             s.absURL("/token"),
+		Keys:              s.absURL("/keys"),
+		UserInfo:          s.absURL("/userinfo"),
+		DeviceEndpoint:    s.absURL("/device/code"),
+		Subjects:          []string{"public"},
+		IDTokenAlgs:       []string{string(jose.RS256)},
+		CodeChallengeAlgs: []string{codeChallengeMethodS256, codeChallengeMethodPlain},
+		Scopes:            []string{"openid", "email", "groups", "profile", "offline_access"},
+		AuthMethods:       []string{"client_secret_basic", "client_secret_post"},
+		Claims: []string{
+			"iss", "sub", "aud", "iat", "exp", "email", "email_verified",
+			"locale", "name", "preferred_username", "at_hash",
+		},
+	}
+
+	for responseType := range s.supportedResponseTypes {
+		d.ResponseTypes = append(d.ResponseTypes, responseType)
+	}
+	sort.Strings(d.ResponseTypes)
+
+	d.GrantTypes = s.supportedGrantTypes
+
+	data, _ := json.MarshalIndent(d, "", "  ")
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+	w.Write(data)
+}
 
 func Setup(ctx context.Context, c Config, r *mux.Router) (*Server, error) {
 	rotationStrategy := defaultRotationStrategy(
@@ -79,24 +137,6 @@ func Setup(ctx context.Context, c Config, r *mux.Router) (*Server, error) {
 		logger:                 c.Logger,
 	}
 
-	// Retrieves connector objects in backend storage. This list includes the static connectors
-	// defined in the ConfigMap and dynamic connectors retrieved from the storage.
-	storageConnectors, err := c.Storage.ListConnectors()
-	if err != nil {
-		return nil, fmt.Errorf("server: failed to list connector objects from storage: %v", err)
-	}
-
-	if len(storageConnectors) == 0 && len(s.connectors) == 0 {
-		return nil, errors.New("server: no connectors specified")
-	}
-
-	for _, conn := range storageConnectors {
-		if _, err := s.OpenConnector(conn); err != nil {
-			continue
-			//cgao6:我们的connector未必已配好，错误信息忽略	return nil, fmt.Errorf("server: Failed to open connector %s: %v", conn.ID, err)
-		}
-	}
-
 	// Add static connectors defined in the ConfigMap.
 	instrumentHandlerCounter := func(_ string, handler http.Handler) http.HandlerFunc {
 		return handler.ServeHTTP
@@ -123,11 +163,7 @@ func Setup(ctx context.Context, c Config, r *mux.Router) (*Server, error) {
 	}
 	r.NotFoundHandler = http.NotFoundHandler()
 
-	discoveryHandler, err := s.discoveryHandler()
-	if err != nil {
-		return nil, err
-	}
-	handleWithCORS("/.well-known/openid-configuration", discoveryHandler)
+	handleWithCORS("/.well-known/openid-configuration", s.handleDiscovery)
 
 	// TODO(ericchiang): rate limit certain paths based on IP.
 	handleWithCORS("/token", s.handleToken)
@@ -161,4 +197,8 @@ func Setup(ctx context.Context, c Config, r *mux.Router) (*Server, error) {
 	s.startGarbageCollection(ctx, value(c.GCFrequency, 5*time.Minute), now)
 
 	return s, nil
+}
+
+func (s *Server) CloseStorage() error {
+	return s.storage.Close()
 }
